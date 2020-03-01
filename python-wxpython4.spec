@@ -5,15 +5,9 @@
 %bcond_with tests
 
 Name:           python-wxpython4
-Version:        4.0.7
-Release:        %mkrel 2
+Version:        4.0.7.post2
+Release:        1
 Summary:        New implementation of wxPython, a GUI toolkit for Python
-# wxPython is licensed under the wxWidgets license.  The only exception is
-# the pubsub code in wx/lib/pubsub which is BSD licensed.  Note: wxPython
-# includes a bundled copy of wxWidgets in ext/wxWidgets which has a few
-# bits of code that use other licenses.  This source is not used in the
-# Fedora build, except for the interface headers in ext/wxWidgets/interface
-# and the doxygen build scripts.
 License:        wxWidgets and BSD
 Group:          Development/Python
 URL:            https://www.wxpython.org/
@@ -24,20 +18,20 @@ Source0:        https://files.pythonhosted.org/packages/source/w/%{srcname}/%{sr
 # a wx.siplib for us in Fedora.
 Patch0:         unbundle-sip.patch
 
-BuildRequires:  gcc-c++
 BuildRequires:  doxygen
-BuildRequires:  waf >= 2.0.18-2
-BuildRequires:  wxgtk3.0-devel
+BuildRequires:  waf
+BuildRequires:  wxgtku3.0-devel
+
 # For tests
 %if %{with tests}
 BuildRequires:  locales-en
 BuildRequires:  x11-server-xvfb
-BuildRequires:  python3-numpy
-BuildRequires:  python3-pypdf2
-BuildRequires:  python3-pytest
-BuildRequires:  python3-pytest-timeout
-BuildRequires:  python3-pytest-xdist
-BuildRequires:  python3-wx-siplib
+BuildRequires:  python-numpy
+BuildRequires:  python-pypdf2
+BuildRequires:  python-pytest
+BuildRequires:  python-pytest-timeout
+BuildRequires:  python-pytest-xdist
+BuildRequires:  python-wx-siplib
 %endif
 
 %description
@@ -51,22 +45,22 @@ specific code.
 
 ### Python 3
 
-%package -n     python3-%{pkgname}
+%package -n     python-%{pkgname}
 Summary:        New implementation of wxPython, a GUI toolkit for Python3
 Group:          Development/Python
-%{?python_provide:%python_provide python3-%{pkgname}}
-BuildRequires:  python3-devel
-BuildRequires:  python3-numpy-devel
-BuildRequires:  python3-pathlib2
-BuildRequires:  python3-pillow
-BuildRequires:  python3-setuptools
-BuildRequires:  python3-sip-devel >= %{sip_ver}
-BuildRequires:  python3-six
-Requires:       python3-pillow
-Requires:       python3-wx-siplib-api(%{_sip_api_major}) >= %{_sip_api}
-Requires:       python3-six
+%{?python_provide:%python_provide python-%{pkgname}}
+BuildRequires:  python-devel
+BuildRequires:  python-numpy-devel
+BuildRequires:  python-pathlib2
+BuildRequires:  python-pillow
+BuildRequires:  python-setuptools
+BuildRequires:  python-sip-devel >= %{sip_ver}
+BuildRequires:  python-six
+Requires:       python-pillow
+Requires:       python-wx-siplib-api(%{_sip_api_major}) >= %{_sip_api}
+Requires:       python-six
 
-%description -n python3-%{pkgname}
+%description -n python-%{pkgname}
 wxPython4 is a is a new implementation of wxPython focused on improving speed,
 maintainability and extensibility. Just like "Classic" wxPython it wraps the
 wxWidgets C++ toolkit and provides access to the user interface portions of the
@@ -76,13 +70,13 @@ specific code.
 
 #----------------------------------------------
 
-%package -n     python3-%{pkgname}-media
+%package -n     python-%{pkgname}-media
 Summary:        New implementation of wxPython, a GUI toolkit for Python3 (media module)
 Group:          Development/Python
-%{?python_provide:%python_provide python3-%{pkgname}-media}
-Requires:       python3-%{pkgname} = %{version}-%{release}
+%{?python_provide:%python_provide python-%{pkgname}-media}
+Requires:       python-%{pkgname} = %{version}-%{release}
 
-%description -n python3-%{pkgname}-media
+%description -n python-%{pkgname}-media
 wxPython4 is a is a new implementation of wxPython focused on improving speed,
 maintainability and extensibility. Just like "Classic" wxPython it wraps the
 wxWidgets C++ toolkit and provides access to the user interface portions of the
@@ -92,13 +86,13 @@ specific code.
 
 This package provides the wx.media module.
 
-%package -n     python3-%{pkgname}-webview
+%package -n     python-%{pkgname}-webview
 Summary:        New implementation of wxPython, a GUI toolkit for Python3 (webview module)
 Group:          Development/Python
-%{?python_provide:%python_provide python3-%{pkgname}-webview}
-Requires:       python3-%{pkgname} = %{version}-%{release}
+%{?python_provide:%python_provide python-%{pkgname}-webview}
+Requires:       python-%{pkgname} = %{version}-%{release}
 
-%description -n python3-%{pkgname}-webview
+%description -n python-%{pkgname}-webview
 wxPython4 is a is a new implementation of wxPython focused on improving speed,
 maintainability and extensibility. Just like "Classic" wxPython it wraps the
 wxWidgets C++ toolkit and provides access to the user interface portions of the
@@ -173,21 +167,21 @@ ln -sf %{python3_sitearch}/wx/siplib.so wx/siplib.so
 xvfb-run -a %{__python3} build.py test --pytest_timeout=60 --extra_pytest="-k $SKIP_TESTS" --verbose || true
 %endif
 
-%files -n python3-%{pkgname}
+%files -n python-%{pkgname}
 %license license/*
-%{python3_sitearch}/*
+%{python_sitearch}/*
 %exclude %{python3_sitearch}/wx/*html2*
 %exclude %{python3_sitearch}/wx/__pycache__/*html2*
 %exclude %{python3_sitearch}/wx/*media*
 %exclude %{python3_sitearch}/wx/__pycache__/*media*
 
-%files -n python3-%{pkgname}-media
-%{python3_sitearch}/wx/*media*
-%{python3_sitearch}/wx/__pycache__/*media*
+%files -n python-%{pkgname}-media
+%{python_sitearch}/wx/*media*
+%{python_sitearch}/wx/__pycache__/*media*
 
-%files -n python3-%{pkgname}-webview
-%{python3_sitearch}/wx/*html2*
-%{python3_sitearch}/wx/__pycache__/*html2*
+%files -n python-%{pkgname}-webview
+%{python_sitearch}/wx/*html2*
+%{python_sitearch}/wx/__pycache__/*html2*
 
 %files doc
 %doc docs demo samples
