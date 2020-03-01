@@ -25,7 +25,8 @@ BuildRequires:  wxgtku3.0-devel
 %{?python_provide:%python_provide python-%{pkgname}}
 BuildRequires:  pkgconfig(python)
 BuildRequires:  python-numpy-devel
-BuildRequires:  python3dist(pathlib2)
+# Available in unsupported, so disable for now.
+#BuildRequires:  python3dist(pathlib2)
 BuildRequires:  python3dist(pillow)
 BuildRequires:  python3dist(setuptools)
 # Devel not available here, so disable it and try python-sip
