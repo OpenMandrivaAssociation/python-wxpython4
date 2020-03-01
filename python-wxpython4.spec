@@ -26,12 +26,14 @@ BuildRequires:  wxgtku3.0-devel
 %if %{with tests}
 BuildRequires:  locales-en
 BuildRequires:  x11-server-xvfb
-BuildRequires:  python-numpy
-BuildRequires:  python-pypdf2
-BuildRequires:  python-pytest
-BuildRequires:  python-pytest-timeout
-BuildRequires:  python-pytest-xdist
-BuildRequires:  python-wx-siplib
+BuildRequires:  python3dist(numpy)
+# Available in Cooker but in unsupported repo. Disable for now.
+#BuildRequires:  python3dist(pypdf2)
+BuildRequires:  python3dist(pytest)
+# Not imported yet
+#BuildRequires:  python-pytest-timeout
+#BuildRequires:  python-pytest-xdist
+#BuildRequires:  python-wx-siplib
 %endif
 
 %description
@@ -49,16 +51,18 @@ specific code.
 Summary:        New implementation of wxPython, a GUI toolkit for Python3
 Group:          Development/Python
 %{?python_provide:%python_provide python-%{pkgname}}
-BuildRequires:  python-devel
+BuildRequires:  pkgconfig(python)
 BuildRequires:  python-numpy-devel
-BuildRequires:  python-pathlib2
-BuildRequires:  python-pillow
-BuildRequires:  python-setuptools
-BuildRequires:  python-sip-devel >= %{sip_ver}
-BuildRequires:  python-six
-Requires:       python-pillow
-Requires:       python-wx-siplib-api(%{_sip_api_major}) >= %{_sip_api}
-Requires:       python-six
+BuildRequires:  python3dist(pathlib2)
+BuildRequires:  python3dist(pillow)
+BuildRequires:  python3dist(setuptools)
+# Devel not available here, so disable it and try python-sip
+#BuildRequires:  python-sip-devel >= %{sip_ver}
+BuildRequires:  python-sip
+BuildRequires:  python3dist(six)
+Requires:       python3dist(pillow)
+#Requires:       python-wx-siplib-api(%{_sip_api_major}) >= %{_sip_api}
+Requires:       python3dist(six)
 
 %description -n python-%{pkgname}
 wxPython4 is a is a new implementation of wxPython focused on improving speed,
