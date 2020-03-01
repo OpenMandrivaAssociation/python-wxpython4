@@ -22,6 +22,20 @@ BuildRequires:  doxygen
 BuildRequires:  waf
 BuildRequires:  wxgtku3.0-devel
 
+%{?python_provide:%python_provide python-%{pkgname}}
+BuildRequires:  pkgconfig(python)
+BuildRequires:  python-numpy-devel
+BuildRequires:  python3dist(pathlib2)
+BuildRequires:  python3dist(pillow)
+BuildRequires:  python3dist(setuptools)
+# Devel not available here, so disable it and try python-sip
+#BuildRequires:  python-sip-devel >= %{sip_ver}
+BuildRequires:  python-sip
+BuildRequires:  python3dist(six)
+Requires:       python3dist(pillow)
+#Requires:       python-wx-siplib-api(%{_sip_api_major}) >= %{_sip_api}
+Requires:       python3dist(six)
+
 # For tests
 %if %{with tests}
 BuildRequires:  locales-en
@@ -43,35 +57,6 @@ wxWidgets C++ toolkit and provides access to the user interface portions of the
 wx API, enabling Python applications to have a GUI on Windows, Macs or Unix
 systems with a native look and feel and requiring very little (if any) platform
 specific code.
-#----------------------------------------------
-
-### Python 3
-
-%package -n     python-%{pkgname}
-Summary:        New implementation of wxPython, a GUI toolkit for Python3
-Group:          Development/Python
-%{?python_provide:%python_provide python-%{pkgname}}
-BuildRequires:  pkgconfig(python)
-BuildRequires:  python-numpy-devel
-BuildRequires:  python3dist(pathlib2)
-BuildRequires:  python3dist(pillow)
-BuildRequires:  python3dist(setuptools)
-# Devel not available here, so disable it and try python-sip
-#BuildRequires:  python-sip-devel >= %{sip_ver}
-BuildRequires:  python-sip
-BuildRequires:  python3dist(six)
-Requires:       python3dist(pillow)
-#Requires:       python-wx-siplib-api(%{_sip_api_major}) >= %{_sip_api}
-Requires:       python3dist(six)
-
-%description -n python-%{pkgname}
-wxPython4 is a is a new implementation of wxPython focused on improving speed,
-maintainability and extensibility. Just like "Classic" wxPython it wraps the
-wxWidgets C++ toolkit and provides access to the user interface portions of the
-wx API, enabling Python applications to have a GUI on Windows, Macs or Unix
-systems with a native look and feel and requiring very little (if any) platform
-specific code.
-
 #----------------------------------------------
 
 %package -n     python-%{pkgname}-media
@@ -171,7 +156,7 @@ ln -sf %{python3_sitearch}/wx/siplib.so wx/siplib.so
 xvfb-run -a %{__python3} build.py test --pytest_timeout=60 --extra_pytest="-k $SKIP_TESTS" --verbose || true
 %endif
 
-%files -n python-%{pkgname}
+%files
 %license license/*
 %{python_sitearch}/*
 %exclude %{python3_sitearch}/wx/*html2*
