@@ -32,6 +32,7 @@ BuildRequires:  python3dist(setuptools)
 # Devel not available here, so disable it and try python-sip
 #BuildRequires:  python-sip-devel >= %{sip_ver}
 BuildRequires:  python-sip
+BuildRequires:  python-sip4-wx
 BuildRequires:  python3dist(six)
 Requires:       python3dist(pillow)
 #Requires:       python-wx-siplib-api(%{_sip_api_major}) >= %{_sip_api}
