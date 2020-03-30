@@ -21,6 +21,8 @@ Patch0:         unbundle-sip.patch
 BuildRequires:  doxygen
 BuildRequires:  waf
 BuildRequires:  wxgtku3.0-devel
+BuildRequires:  pkgconfig(gtk+-3.0)
+BuildRequires:  pkgconfig(gdk-3.0)
 BuildRequires:  python3dist(requests)
 
 %{?python_provide:%python_provide python-%{pkgname}}
