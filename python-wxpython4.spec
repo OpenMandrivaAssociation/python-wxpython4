@@ -145,8 +145,8 @@ for file in demo/TestTable.txt docs/sphinx/_downloads/i18nwxapp/locale/I18Nwxapp
 done
 
 %build
-export CC=gcc
-export CXX=g++
+#export CC=gcc
+#export CXX=g++
 #DOXYGEN=%{_bindir}/doxygen SIP=%{_bindir}/sip-wx WAF=%{_bindir}/waf \
 %{__python3} -u build.py dox touch etg --nodoc sip build_py --use_syswx --gtk3
 
