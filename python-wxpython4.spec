@@ -6,7 +6,7 @@
 
 Name:           python-wxpython4
 Version:        4.0.7.post2
-Release:        1
+Release:        2
 Summary:        New implementation of wxPython, a GUI toolkit for Python
 License:        wxWidgets and BSD
 Group:          Development/Python
@@ -36,8 +36,8 @@ BuildRequires:  python-sip4
 BuildRequires:  python-sip4-wx
 BuildRequires:  python3dist(six)
 Requires:       python3dist(pillow)
-#Requires:       python-wx-siplib-api(%{_sip_api_major}) >= %{_sip_api}
 Requires:       python3dist(six)
+Requires:	python-sip4-wx
 
 # For tests
 %if %{with tests}
