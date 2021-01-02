@@ -5,8 +5,8 @@
 %bcond_with tests
 
 Name:           python-wxpython4
-Version:        4.0.7.post2
-Release:        3
+Version:        4.1.1
+Release:        1
 Summary:        New implementation of wxPython, a GUI toolkit for Python
 License:        wxWidgets and BSD
 Group:          Development/Python
