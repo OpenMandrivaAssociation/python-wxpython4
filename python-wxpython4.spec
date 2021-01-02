@@ -20,7 +20,7 @@ Patch0:         unbundle-sip.patch
 
 BuildRequires:  doxygen
 BuildRequires:  waf
-BuildRequires:  wxgtku3.0-devel
+BuildRequires:  wxgtk3.1-devel
 BuildRequires:	pkgconfig(gtk+-3.0)
 
 %{?python_provide:%python_provide python-%{pkgname}}
@@ -143,8 +143,10 @@ for file in demo/TestTable.txt docs/sphinx/_downloads/i18nwxapp/locale/I18Nwxapp
 done
 
 %build
-DOXYGEN=%{_bindir}/doxygen SIP="%{_bindir}/sip -n wx" WAF=%{_bindir}/waf \
-%{__python3} -u build.py dox touch etg --nodoc sip build_py --use_syswx --gtk3
+# disable docs for now since doxygen 1.9.0 build issue
+# to re-enable: do "dox touch etg"
+DOXYGEN=%{_bindir}/doxygen SIP=%{_bindir}/sip-wx WAF=%{_bindir}/waf \
+%{__python3} -u build.py touch --nodoc sip build_py --use_syswx --gtk3
 
 %install
 %{__python3} build.py install_py --destdir=%{buildroot}
