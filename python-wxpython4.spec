@@ -16,7 +16,7 @@ Source0:        https://files.pythonhosted.org/packages/source/w/%{srcname}/%{sr
 # siplib code.  It's not possible to build this siplib because the source code
 # for sipgen is not included.  Thus we unbundle sip and the sip package builds
 # a wx.siplib for us in Fedora.
-Patch0:         unbundle-sip.patch
+#Patch0:         unbundle-sip.patch
 
 BuildRequires:  doxygen
 BuildRequires:  waf
