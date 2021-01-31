@@ -1,0 +1,210 @@
+From c8e25b79e1374f6e5e5046097443d0f395a7c8a8 Mon Sep 17 00:00:00 2001
+From: Robin Dunn <robin@alldunn.com>
+Date: Tue, 5 Jan 2021 10:56:42 -0800
+Subject: [PATCH] Run SIP via its Python interface rather than as a separate
+ subprocess
+
+---
+ build.py                  |  50 ++--
+ buildtools/config.py      |   2 -
+ buildtools/wxpysip.py     | 110 +++++++++
+ wscript                   |   7 -
+ wx/include/wxPython/sip.h | 463 ++++++--------------------------------
+ 5 files changed, 209 insertions(+), 423 deletions(-)
+ create mode 100644 buildtools/wxpysip.py
+
+diff --git a/build.py b/build.py
+index 34038cc32..9ffd520b6 100755
+--- a/build.py
++++ b/build.py
+@@ -45,6 +45,7 @@
+                                getVcsRev, runcmd, textfile_open, getSipFiles, \
+                                getVisCVersion, getToolsPlatformName, updateLicenseFiles, \
+                                TemporaryDirectory
++from buildtools.wxpysip import sip_runner
+ 
+ import buildtools.version as version
+ 
+@@ -1252,11 +1253,30 @@ def cmd_sip(options, args):
+         if not newer_group(sipFiles, sbf) and os.path.exists(pycode):
+             continue
+ 
+-        pycode = '-X pycode'+base+':'+pycode
+-        sip = getSipCmd()
+-        cmd = '%s %s -c %s -b %s %s %s'  % \
+-            (sip, cfg.SIPOPTS, tmpdir, sbf, pycode, src_name)
+-        runcmd(cmd)
++        # Leave it turned off for now. TODO: Experiment with this...
++        # pyi_extract = posixjoin(cfg.PKGDIR, base[1:]) + '.pyi'
++        pyi_extract = None
++
++        # SIP extracts are used to pull python snippets and put them into the
++        # module's .py file
++        pycode = 'pycode'+base+':'+pycode
++
++        sip_runner(src_name,
++            abi_version = '12.8',       # siplib abi version
++            warnings = True,            # enable warning messages
++            docstrings = True,          # enable the automatic generation of docstrings
++            release_gil = True,         # always release and reacquire the GIL
++            sip_module = 'wx.siplib',   # the fully qualified name of the sip module
++            sbf_file=sbf,               # File to write the generated file lists to
++            exceptions = False,         # enable support for exceptions
++            tracing = False,            # generate code with tracing enabled
++            sources_dir = tmpdir,       # the name of the code directory
++            extracts = [pycode],        # add <ID:FILE> to the list of extracts to generate
++            pyi_extract=pyi_extract,    # the name of the .pyi stub file
++            include_dirs = [
++                os.path.join(phoenixDir(), 'src'),
++                os.path.join(phoenixDir(), 'sip', 'gen'),
++            ])
+ 
+         classesNeedingClassInfo = { 'sip_corewxTreeCtrl.cpp' : 'wxTreeCtrl', }
+ 
+diff --git a/buildtools/config.py b/buildtools/config.py
+index 99a1a2258..a7c2a0d59 100644
+--- a/buildtools/config.py
++++ b/buildtools/config.py
+@@ -169,8 +169,6 @@ def finishSetup(self, wx_config=None, debug=None):
+                              ('WXUSINGDLL', '1'),
+                              ('ISOLATION_AWARE_ENABLED', None),
+                              #('NDEBUG',),  # using a 1-tuple makes it do an undef
+-                             ('SIP_MODULE_NAME', 'wx.siplib'),
+-                             ('SIP_MODULE_BASENAME', 'siplib'),
+                              ]
+ 
+             self.libs = []
+diff --git a/buildtools/wxpysip.py b/buildtools/wxpysip.py
+new file mode 100644
+index 000000000..c58102b84
+--- /dev/null
++++ b/buildtools/wxpysip.py
+@@ -0,0 +1,110 @@
++#----------------------------------------------------------------------
++# Name:        buildtools.wxpysip
++# Purpose:     Code to help migrate to SIP 5 with as little disruption
++#              as possible.
++#
++# Author:      Robin Dunn
++#
++# Created:     4-Jan-2021
++# Copyright:   (c) 2021 by Total Control Software
++# License:     wxWindows License
++#----------------------------------------------------------------------
++
++# NOTE: This code is mostly copied, adapted, and extended from the
++#       sipbuild.legacy.sip5 module. The main intent is to make it easy to run
++#       sip the same way as the legacy sip5 entry point, but without needing to
++#       run a subprocess, and to also add a little missing sip 4 functionality
++#       that we were depending on with the old SIP.
++import os
++
++from sipbuild.code_generator import (set_globals, parse, generateCode,
++        generateExtracts, generateAPI, generateXML, generateTypeHints)
++from sipbuild.exceptions import handle_exception, UserException
++from sipbuild.module import resolve_abi_version
++from sipbuild.version import SIP_VERSION, SIP_VERSION_STR
++
++
++def sip_runner(
++    specification,              # the name of the specification file [default stdin]
++    sources_dir=None,           # the name of the code output directory [default not generated]
++    include_dirs=[],            # add <DIR> to the list of directories to search when importing or including .sip files
++    warnings=False,             # enable warning messages [default disabled]
++    docstrings=False,           # enable the automatic generation of docstrings [default disabled]
++    release_gil=False,          # always release and reacquire the GIL [default only when specified]
++    sip_module=None,            # the fully qualified name of the sip module
++    api_extract=None,           # the name of the QScintilla API file [default not generated
++    exceptions=False,           # enable support for C++ exceptions [default disabled]
++    tracing=False,              # generate code with tracing enabled [default disabled]
++    extracts=[],                # add <ID:FILE> to the list of extracts to generate
++    pyi_extract=None,           # the name of the .pyi stub file [default not generated]
++    sbf_file=None,              # File to write the generated file lists to [default not generated]
++    abi_version=None,           # the sip ABI version
++    backstops=[],               # add <TAG> to the list of timeline backstops
++    py_debug=False,             # generate code for a debug build of Python
++    warnings_are_errors=False,  # warnings are handled as errors
++    parts=0,                    # split the generated code into <FILES> files [default 1 per class]
++    xml_extract=None,           # file to write sip xml to
++    protected_is_public=False,  # enable the protected/public hack [default disabled]
++    source_suffix=None,         # the suffix to use for C or C++ source files [default \".c\" or \".cpp\"]
++    tags=[],                    # add <TAG> to the list of versions/platforms to generate code for
++    disabled_features=[],       # add <FEATURE> to the list of disabled features
++    ):
++
++    print("Running SIP code generator on: {}".format(specification))
++
++    generated_files = []
++    try:
++        # The code generator requires the name of the sip module.
++        if sources_dir is not None and sip_module is None:
++            raise UserException("the name of the sip module must be given")
++
++        # Check the ABI version.
++        abi_major, abi_minor = resolve_abi_version(abi_version).split('.')
++
++        # Set the globals.
++        set_globals(SIP_VERSION, SIP_VERSION_STR, int(abi_major), int(abi_minor),
++                UserException, include_dirs)
++
++        # Parse the input file.
++        pt, _, _, _, tags, disabled_features = parse(specification,
++                (xml_extract is None), tags, backstops, disabled_features,
++                protected_is_public)
++
++        # Generate the bindings.
++        if sources_dir is not None:
++            generated_files = generateCode(pt, sources_dir, source_suffix,
++                    exceptions, tracing, release_gil, parts, tags,
++                    disabled_features, docstrings, py_debug, sip_module)
++
++        if sbf_file is not None:
++            generateBuildFile(sbf_file, generated_files)
++
++        # Generate any extracts.
++        generateExtracts(pt, extracts)
++
++        # Generate the API file.
++        if api_extract is not None:
++            generateAPI(pt, api_extract)
++
++        # Generate the type hints file.
++        if pyi_extract is not None:
++            generateTypeHints(pt, pyi_extract)
++
++        # Generate the XML file.
++        if xml_extract is not None:
++            generateXML(pt, xml_extract)
++
++    except Exception as e:
++        handle_exception(e)
++
++    return generated_files
++
++
++def generateBuildFile(sbf_file, generated_files):
++    header, sources = generated_files
++    header = os.path.basename(header)
++    sources = [os.path.basename(n) for n in sources]
++    with open(sbf_file, 'w') as f:
++        f.write("sources = {}\n".format(' '.join(sources)))
++        f.write("headers = {}\n".format(header))
++
+diff --git a/wscript b/wscript
+index 1e143be67..7fc4f7ca8 100644
+--- a/wscript
++++ b/wscript
+@@ -318,13 +318,6 @@ def configure(conf):
+         conf.env.CFLAGS_WXPY.append('-UNDEBUG')
+         conf.env.CXXFLAGS_WXPY.append('-UNDEBUG')
+ 
+-        # set the name of our siplib module
+-        conf.env.CFLAGS_WXPY.append('-DSIP_MODULE_NAME=wx.siplib')
+-        conf.env.CXXFLAGS_WXPY.append('-DSIP_MODULE_NAME=wx.siplib')
+-
+-        conf.env.CFLAGS_WXPY.append('-DSIP_MODULE_BASENAME=siplib')
+-        conf.env.CXXFLAGS_WXPY.append('-DSIP_MODULE_BASENAME=siplib')
+-
+         # Add basic debug info for all builds
+         conf.env.CFLAGS_WXPY.append('-g')
+         conf.env.CXXFLAGS_WXPY.append('-g')
