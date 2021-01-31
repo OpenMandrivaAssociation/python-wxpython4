@@ -16,7 +16,8 @@ Source0:        https://files.pythonhosted.org/packages/source/w/%{srcname}/%{sr
 # siplib code.  It's not possible to build this siplib because the source code
 # for sipgen is not included.  Thus we unbundle sip and the sip package builds
 # a wx.siplib for us in Fedora.
-Patch0:         unbundle-sip.patch
+#Patch0:         unbundle-sip.patch
+Patch0:         sip5.patch
 
 BuildRequires:  doxygen
 BuildRequires:  waf
@@ -32,12 +33,13 @@ BuildRequires:  python3dist(pillow)
 BuildRequires:  python3dist(setuptools)
 # Devel not available here, so disable it and try python-sip
 #BuildRequires:  python-sip-devel >= %{sip_ver}
-BuildRequires:  python-sip4
-BuildRequires:  python-sip4-wx
+#BuildRequires:  python-sip4
+#BuildRequires:  python-sip4-wx
 BuildRequires:  python3dist(six)
+BuildRequires:  python3dist(sip)
 Requires:       python3dist(pillow)
 Requires:       python3dist(six)
-Requires:	python-sip4-wx
+#Requires:	python-sip4-wx
 
 # For tests
 %if %{with tests}
@@ -143,6 +145,12 @@ for file in demo/TestTable.txt docs/sphinx/_downloads/i18nwxapp/locale/I18Nwxapp
 done
 
 %build
+#Generate sip module code to replace bundled version            
+sip-module --abi-version 12.8 --sdist wx.siplib            
+tar -xf wx_siplib-12.8.1.tar.gz            
+mv wx_siplib-12.8.1 sip/siplib            
+cp -p /usr/share/licenses/sip5/LICENSE sip/siplib
+
 # disable docs for now since doxygen 1.9.0 build issue
 # to re-enable: do "dox touch etg"
 DOXYGEN=%{_bindir}/doxygen SIP=%{_bindir}/sip-wx WAF=%{_bindir}/waf \
