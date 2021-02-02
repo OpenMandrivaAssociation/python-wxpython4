@@ -1,0 +1,21 @@
+diff -up wxPython-4.1.1/buildtools/wxpysip.py.omv~ wxPython-4.1.1/buildtools/wxpysip.py
+--- wxPython-4.1.1/buildtools/wxpysip.py.omv~	2021-02-01 22:46:48.953693152 +0100
++++ wxPython-4.1.1/buildtools/wxpysip.py	2021-02-01 22:52:17.862550769 +0100
+@@ -62,7 +62,7 @@ def sip_runner(
+         abi_major, abi_minor = resolve_abi_version(abi_version).split('.')
+ 
+         # Set the globals.
+-        set_globals(SIP_VERSION, SIP_VERSION_STR, int(abi_major), int(abi_minor),
++        set_globals(SIP_VERSION, SIP_VERSION_STR, int(abi_major), int(abi_minor), sip_module,
+                 UserException, include_dirs)
+ 
+         # Parse the input file.
+@@ -74,7 +74,7 @@ def sip_runner(
+         if sources_dir is not None:
+             generated_files = generateCode(pt, sources_dir, source_suffix,
+                     exceptions, tracing, release_gil, parts, tags,
+-                    disabled_features, docstrings, py_debug, sip_module)
++                    disabled_features, docstrings, py_debug)
+ 
+         if sbf_file is not None:
+             generateBuildFile(sbf_file, generated_files)

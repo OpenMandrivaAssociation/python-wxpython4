@@ -12,12 +12,10 @@ License:        wxWidgets and BSD
 Group:          Development/Python
 URL:            https://www.wxpython.org/
 Source0:        https://files.pythonhosted.org/packages/source/w/%{srcname}/%{srcname}-%{version}.tar.gz
-# wxPython upstream uses a private sip module, wx.siplib, and bundles the
-# siplib code.  It's not possible to build this siplib because the source code
-# for sipgen is not included.  Thus we unbundle sip and the sip package builds
-# a wx.siplib for us in Fedora.
-#Patch0:         unbundle-sip.patch
 Patch0:         sip5.patch
+Patch1:		sip6.patch
+Patch2:		wxPython-4.1.1-doxygen-1.9.patch
+#Patch3:		unbundle-sip.patch
 
 BuildRequires:  doxygen
 BuildRequires:  waf
@@ -31,15 +29,10 @@ BuildRequires:  python-numpy-devel
 #BuildRequires:  python3dist(pathlib2)
 BuildRequires:  python3dist(pillow)
 BuildRequires:  python3dist(setuptools)
-# Devel not available here, so disable it and try python-sip
-#BuildRequires:  python-sip-devel >= %{sip_ver}
-#BuildRequires:  python-sip4
-#BuildRequires:  python-sip4-wx
 BuildRequires:  python3dist(six)
 BuildRequires:  python3dist(sip)
 Requires:       python3dist(pillow)
 Requires:       python3dist(six)
-#Requires:	python-sip4-wx
 
 # For tests
 %if %{with tests}
@@ -149,12 +142,12 @@ done
 sip-module --abi-version 12.8 --sdist wx.siplib            
 tar -xf wx_siplib-12.8.1.tar.gz            
 mv wx_siplib-12.8.1 sip/siplib            
-cp -p /usr/share/licenses/sip5/LICENSE sip/siplib
+cp -p /usr/share/licenses/python-sip/LICENSE sip/siplib
 
 # disable docs for now since doxygen 1.9.0 build issue
 # to re-enable: do "dox touch etg"
-DOXYGEN=%{_bindir}/doxygen SIP=%{_bindir}/sip-wx WAF=%{_bindir}/waf \
-%{__python3} -u build.py touch --nodoc sip build_py --use_syswx --gtk3
+DOXYGEN=%{_bindir}/doxygen SIP=%{_bindir}/sip WAF=%{_bindir}/waf \
+%{__python3} -u build.py touch dox etg --nodoc sip build_py --use_syswx --gtk3
 
 %install
 %{__python3} build.py install_py --destdir=%{buildroot}

@@ -1,23 +1,7 @@
-From c8e25b79e1374f6e5e5046097443d0f395a7c8a8 Mon Sep 17 00:00:00 2001
-From: Robin Dunn <robin@alldunn.com>
-Date: Tue, 5 Jan 2021 10:56:42 -0800
-Subject: [PATCH] Run SIP via its Python interface rather than as a separate
- subprocess
-
----
- build.py                  |  50 ++--
- buildtools/config.py      |   2 -
- buildtools/wxpysip.py     | 110 +++++++++
- wscript                   |   7 -
- wx/include/wxPython/sip.h | 463 ++++++--------------------------------
- 5 files changed, 209 insertions(+), 423 deletions(-)
- create mode 100644 buildtools/wxpysip.py
-
-diff --git a/build.py b/build.py
-index 34038cc32..9ffd520b6 100755
---- a/build.py
-+++ b/build.py
-@@ -45,6 +45,7 @@
+diff -up wxPython-4.1.1/build.py.1~ wxPython-4.1.1/build.py
+--- wxPython-4.1.1/build.py.1~	2020-11-21 19:55:25.000000000 +0100
++++ wxPython-4.1.1/build.py	2021-02-01 22:09:53.898626318 +0100
+@@ -45,6 +45,7 @@ from buildtools.config  import Config, m
                                 getVcsRev, runcmd, textfile_open, getSipFiles, \
                                 getVisCVersion, getToolsPlatformName, updateLicenseFiles, \
                                 TemporaryDirectory
@@ -25,14 +9,14 @@ index 34038cc32..9ffd520b6 100755
  
  import buildtools.version as version
  
-@@ -1252,11 +1253,30 @@ def cmd_sip(options, args):
-         if not newer_group(sipFiles, sbf) and os.path.exists(pycode):
-             continue
+@@ -1289,11 +1290,30 @@ def cmd_sip(options, args):
+         # typehint = '-y {}'.format(posixjoin(cfg.PKGDIR, base[1:]) + '.pyi')
+         typehint = ''
  
 -        pycode = '-X pycode'+base+':'+pycode
 -        sip = getSipCmd()
--        cmd = '%s %s -c %s -b %s %s %s'  % \
--            (sip, cfg.SIPOPTS, tmpdir, sbf, pycode, src_name)
+-        cmd = '%s %s -c %s -b %s %s %s %s'  % \
+-            (sip, cfg.SIPOPTS, tmpdir, sbf, pycode, typehint, src_name)
 -        runcmd(cmd)
 +        # Leave it turned off for now. TODO: Experiment with this...
 +        # pyi_extract = posixjoin(cfg.PKGDIR, base[1:]) + '.pyi'
@@ -61,24 +45,9 @@ index 34038cc32..9ffd520b6 100755
  
          classesNeedingClassInfo = { 'sip_corewxTreeCtrl.cpp' : 'wxTreeCtrl', }
  
-diff --git a/buildtools/config.py b/buildtools/config.py
-index 99a1a2258..a7c2a0d59 100644
---- a/buildtools/config.py
-+++ b/buildtools/config.py
-@@ -169,8 +169,6 @@ def finishSetup(self, wx_config=None, debug=None):
-                              ('WXUSINGDLL', '1'),
-                              ('ISOLATION_AWARE_ENABLED', None),
-                              #('NDEBUG',),  # using a 1-tuple makes it do an undef
--                             ('SIP_MODULE_NAME', 'wx.siplib'),
--                             ('SIP_MODULE_BASENAME', 'siplib'),
-                              ]
- 
-             self.libs = []
-diff --git a/buildtools/wxpysip.py b/buildtools/wxpysip.py
-new file mode 100644
-index 000000000..c58102b84
---- /dev/null
-+++ b/buildtools/wxpysip.py
+diff -up wxPython-4.1.1/buildtools/wxpysip.py.1~ wxPython-4.1.1/buildtools/wxpysip.py
+--- wxPython-4.1.1/buildtools/wxpysip.py.1~	2021-02-01 22:07:52.489301035 +0100
++++ wxPython-4.1.1/buildtools/wxpysip.py	2021-02-01 22:07:52.489301035 +0100
 @@ -0,0 +1,110 @@
 +#----------------------------------------------------------------------
 +# Name:        buildtools.wxpysip
@@ -190,11 +159,10 @@ index 000000000..c58102b84
 +        f.write("sources = {}\n".format(' '.join(sources)))
 +        f.write("headers = {}\n".format(header))
 +
-diff --git a/wscript b/wscript
-index 1e143be67..7fc4f7ca8 100644
---- a/wscript
-+++ b/wscript
-@@ -318,13 +318,6 @@ def configure(conf):
+diff -up wxPython-4.1.1/wscript.1~ wxPython-4.1.1/wscript
+--- wxPython-4.1.1/wscript.1~	2020-11-21 19:55:25.000000000 +0100
++++ wxPython-4.1.1/wscript	2021-02-01 22:07:52.489301035 +0100
+@@ -319,13 +319,6 @@ def configure(conf):
          conf.env.CFLAGS_WXPY.append('-UNDEBUG')
          conf.env.CXXFLAGS_WXPY.append('-UNDEBUG')
  
