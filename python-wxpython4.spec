@@ -142,7 +142,7 @@ done
 sip-module --abi-version 12.8 --sdist wx.siplib            
 tar -xf wx_siplib-12.8.1.tar.gz            
 mv wx_siplib-12.8.1 sip/siplib            
-cp -p /usr/share/licenses/python-sip/LICENSE sip/siplib
+#cp -p /usr/share/licenses/python-sip/LICENSE sip/siplib
 
 # disable docs for now since doxygen 1.9.0 build issue
 # to re-enable: do "dox touch etg"
