@@ -1,12 +1,15 @@
 %define pkgname      wxpython4
 %define srcname      wxPython
-%define sip_ver      1:4.19.1
 
 %bcond_with tests
+# Not yet fully ready, wxQt is missing the
+# wxPen::wxPen(const wxPenInfo&)
+# constructor
+%bcond_with qt
 
 Name:           python-wxpython4
 Version:        4.1.1
-Release:        1
+Release:        2
 Summary:        New implementation of wxPython, a GUI toolkit for Python
 License:        wxWidgets and BSD
 Group:          Development/Python
@@ -16,11 +19,19 @@ Patch0:         sip5.patch
 Patch1:		sip6.patch
 Patch2:		wxPython-4.1.1-doxygen-1.9.patch
 #Patch3:		unbundle-sip.patch
+Patch4:		wxPython-4.1.1-qt.patch
 
 BuildRequires:  doxygen
 BuildRequires:  waf
+%if %{with qt}
+BuildRequires:	wxqt3.1-devel
+BuildRequires:	pkgconfig(Qt5Core)
+BuildRequires:	pkgconfig(Qt5Gui)
+BuildRequires:	pkgconfig(Qt5Widgets)
+%else
 BuildRequires:  wxgtk3.1-devel
 BuildRequires:	pkgconfig(gtk+-3.0)
+%endif
 
 %{?python_provide:%python_provide python-%{pkgname}}
 BuildRequires:  pkgconfig(python)
@@ -142,12 +153,17 @@ done
 sip-module --abi-version 12.8 --sdist wx.siplib            
 tar -xf wx_siplib-12.8.1.tar.gz            
 mv wx_siplib-12.8.1 sip/siplib            
-cp -p /usr/share/licenses/python-sip/LICENSE sip/siplib
+cp -p /usr/share/common-licenses/GPLv2 sip/siplib/LICENSE
 
 # disable docs for now since doxygen 1.9.0 build issue
 # to re-enable: do "dox touch etg"
+%if %{with qt}
+DOXYGEN=%{_bindir}/doxygen SIP=%{_bindir}/sip WAF=%{_bindir}/waf \
+%{__python3} -u build.py touch dox etg --nodoc sip build_py --use_syswx --qt
+%else
 DOXYGEN=%{_bindir}/doxygen SIP=%{_bindir}/sip WAF=%{_bindir}/waf \
 %{__python3} -u build.py touch dox etg --nodoc sip build_py --use_syswx --gtk3
+%endif
 
 %install
 %{__python3} build.py install_py --destdir=%{buildroot}

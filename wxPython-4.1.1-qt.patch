@@ -1,0 +1,269 @@
+diff -up wxPython-4.1.1/build.py.omv~ wxPython-4.1.1/build.py
+--- wxPython-4.1.1/build.py.omv~	2021-02-02 04:40:12.976987206 +0100
++++ wxPython-4.1.1/build.py	2021-02-02 04:41:50.166464323 +0100
+@@ -409,6 +409,7 @@ def makeOptionParser():
+         ("keep_hash_lines",(False, "Don't remove the '#line N' lines from the SIP generated code")),
+         ("gtk2",           (False, "On Linux build for gtk2 (default gtk3)")),
+         ("gtk3",           (True,  "On Linux build for gtk3")),
++        ("qt",             (False, "On Linux build for Qt")),
+         ("osx_cocoa",      (True,  "Build the OSX Cocoa port on Mac (default)")),
+         ("osx_carbon",     (False, "Build the OSX Carbon port on Mac (unsupported)")),
+         ("mac_framework",  (False, "Build wxWidgets as a Mac framework.")),
+@@ -1478,6 +1479,9 @@ def cmd_build_wx(options, args):
+         if options.mac_framework and isDarwin:
+             build_options.append("--mac_framework")
+ 
++        if options.qt:
++            build_options.append('--qt')
++
+         if not isDarwin:
+             if options.gtk2:
+                 build_options.append('--gtk2')
+@@ -1659,6 +1663,9 @@ def cmd_build_py(options, args):
+         if options.gtk3:
+             build_options.append('--gtk3')
+             wafBuildDir = posixjoin(wafBuildBase, 'gtk3')
++        if options.qt:
++            build_options.append('--qt')
++            wafBuildDir = posixjoin(wafBuildBase, 'qt')
+ 
+     build_options.append('--python="%s"' % PYTHON)
+     build_options.append('--out=%s' % wafBuildDir) # this needs to be the last option
+@@ -1735,7 +1742,7 @@ def cmd_build_docker(options, args):
+         runcmd(cmd, echoCmd=True)
+ 
+     if options.upload:
+-        for tag in ['gtk2', 'gtk3']:
++        for tag in ['gtk2', 'gtk3', 'qt']:
+             src = opj(phoenixDir(), 'dist', 'linux', tag)
+             if os.path.isdir(src):
+                 uploadTree(src, 'linux', options)
+diff -up wxPython-4.1.1/buildtools/build_wxwidgets.py.omv~ wxPython-4.1.1/buildtools/build_wxwidgets.py
+--- wxPython-4.1.1/buildtools/build_wxwidgets.py.omv~	2021-02-02 04:33:25.405846620 +0100
++++ wxPython-4.1.1/buildtools/build_wxwidgets.py	2021-02-02 04:34:30.595495897 +0100
+@@ -207,6 +207,7 @@ def main(wxDir, args):
+         "installdir"    : ("", "Directory where built wxWidgets will be installed"),
+         "gtk2"          : (False, "On Linux build for gtk2 (default gtk3"),
+         "gtk3"          : (True,  "On Linux build for gtk3"),
++        "qt"            : (False, "On Linux build for qt"),
+         "mac_distdir"   : (None, "If set on Mac, will create an installer package in the specified dir."),
+         "mac_universal_binary"
+                         : ("", "Comma separated list of architectures to include in the Mac universal binary"),
+@@ -270,9 +271,12 @@ def main(wxDir, args):
+         elif options.osx_carbon:
+             configure_opts.append("--with-osx_carbon")
+ 
+-        if options.gtk2:
++        if options.gtk2 or options.qt:
+             options.gtk3 = False
+ 
++        if options.qt:
++            configure_opts.append("--with-qt")
++
+         if not sys.platform.startswith("darwin"):
+             if options.gtk3:
+                 configure_opts.append("--with-gtk=3")
+diff -up wxPython-4.1.1/buildtools/config.py.omv~ wxPython-4.1.1/buildtools/config.py
+--- wxPython-4.1.1/buildtools/config.py.omv~	2021-02-02 04:30:39.733404613 +0100
++++ wxPython-4.1.1/buildtools/config.py	2021-02-02 04:33:16.495894557 +0100
+@@ -53,8 +53,8 @@ class Configuration(object):
+     WXPORT = 'gtk3'
+     # On Linux/Unix there are several ports of wxWidgets available.
+     # Setting this value lets you select which will be used for the
+-    # wxPython build.  Possibilities are 'gtk', 'gtk2', 'gtk3' and 'x11'.
+-    # Currently only gtk, gtk2 and gtk3 work.
++    # wxPython build.  Possibilities are 'qt', 'gtk', 'gtk2', 'gtk3' and 'x11'.
++    # Currently only qt, gtk, gtk2 and gtk3 work.
+ 
+     BUILD_BASE = "build"
+     # Directory to use for temporary build files.
+@@ -284,7 +284,10 @@ class Configuration(object):
+             # wxGTK settings
+             else:
+                 # Set flags for other Unix type platforms
+-                if self.WXPORT == 'gtk':
++                if self.WXPORT == 'qt':
++                    self.WXPLAT = '__WXQT__'
++                    portcfg = os.popen('pkg-config --cflags Qt5Core Qt5Gui Qt5Widgets', 'r').read()[:-1]
++                elif self.WXPORT == 'gtk':
+                     msg("WARNING: The GTK 1.x port is not supported")
+                     self.WXPLAT = '__WXGTK__'
+                     portcfg = os.popen('gtk-config --cflags', 'r').read()[:-1]
+@@ -372,6 +375,8 @@ class Configuration(object):
+             self.WXPORT = 'gtk2'
+         if '--gtk3' in sys.argv:
+             self.WXPORT = 'gtk3'
++        if '--qt' in sys.argv:
++            self.WXPORT = 'qt'
+ 
+         # the values of the items in the class namespace that start
+         # with an upper case letter can be overridden on the command
+diff -up wxPython-4.1.1/etg/_core.py.omv~ wxPython-4.1.1/etg/_core.py
+--- wxPython-4.1.1/etg/_core.py.omv~	2021-02-02 04:39:24.573914284 +0100
++++ wxPython-4.1.1/etg/_core.py	2021-02-02 04:39:51.847100886 +0100
+@@ -282,6 +282,8 @@ def run():
+                     port = 'gtk2'
+                 elif 'gtk3' in wx.PlatformInfo:
+                     port = 'gtk3'
++            elif wx.Port == '__WXQT__':
++                port = 'qt'
+             else:
+                 port = '???'
+             return "%s %s (phoenix) %s" % (wx.VERSION_STRING, port, wx.wxWidgets_version)
+diff -up wxPython-4.1.1/sip/cpp/sip_corecmodule.cpp.omv~ wxPython-4.1.1/sip/cpp/sip_corecmodule.cpp
+--- wxPython-4.1.1/sip/cpp/sip_corecmodule.cpp.omv~	2021-02-02 04:35:33.288491940 +0100
++++ wxPython-4.1.1/sip/cpp/sip_corecmodule.cpp	2021-02-02 04:35:48.458410325 +0100
+@@ -8575,6 +8575,9 @@ void wxPyCoreModuleInject(PyObject* modu
+     _AddInfoString("gtk1");
+ #endif
+ #endif
++#ifdef __WXQT__
++    _AddInfoString("qt");
++#endif
+ #ifdef __WXDEBUG__
+     _AddInfoString("wx-assertions-on");
+ #else
+diff -up wxPython-4.1.1/sip/gen/_core.sip.omv~ wxPython-4.1.1/sip/gen/_core.sip
+--- wxPython-4.1.1/sip/gen/_core.sip.omv~	2021-02-02 04:34:37.865456785 +0100
++++ wxPython-4.1.1/sip/gen/_core.sip	2021-02-02 04:35:21.005224691 +0100
+@@ -423,6 +423,9 @@ void wxPyCoreModuleInject(PyObject* modu
+     _AddInfoString("gtk1");
+ #endif
+ #endif
++#ifdef __WXQT__
++    __AddInfoString("qt");
++#endif
+ #ifdef __WXDEBUG__
+     _AddInfoString("wx-assertions-on");
+ #else
+@@ -602,6 +605,8 @@ def version():
+             port = 'gtk2'
+         elif 'gtk3' in wx.PlatformInfo:
+             port = 'gtk3'
++    elif wx.Port == '__WXQT__':
++        port = 'qt'
+     else:
+         port = '???'
+     return "%s %s (phoenix) %s" % (wx.VERSION_STRING, port, wx.wxWidgets_version)
+diff -up wxPython-4.1.1/src/core_ex.cpp.omv~ wxPython-4.1.1/src/core_ex.cpp
+--- wxPython-4.1.1/src/core_ex.cpp.omv~	2021-02-02 04:42:19.606305936 +0100
++++ wxPython-4.1.1/src/core_ex.cpp	2021-02-02 04:42:33.162899668 +0100
+@@ -188,6 +188,9 @@ void wxPyCoreModuleInject(PyObject* modu
+     _AddInfoString("gtk1");
+ #endif
+ #endif
++#ifdef __WXQT__
++    _AddInfoString("qt");
++#endif
+ #ifdef __WXDEBUG__
+     _AddInfoString("wx-assertions-on");
+ #else
+diff -up wxPython-4.1.1/wscript.omv~ wxPython-4.1.1/wscript
+--- wxPython-4.1.1/wscript.omv~	2021-02-02 04:42:41.356188921 +0100
++++ wxPython-4.1.1/wscript	2021-02-02 04:44:33.998916233 +0100
+@@ -56,6 +56,8 @@ def options(opt):
+                    help='On Linux build for gtk2 (default gtk3)')
+     opt.add_option('--gtk3', dest='gtk3', action='store_true', default=True,
+                    help='On Linux build for gtk3')
++    opt.add_option('--qt', dest='qt', action='store_true', default=False,
++                   help='On Linux build for Qt')
+     opt.add_option('--msvc_arch', dest='msvc_arch', default='x86', action='store',
+                    help='The architecture to target for MSVC builds. Supported values '
+                    'are: "x86" or "x64"')
+@@ -297,6 +299,10 @@ def configure(conf):
+ 
+         # ** Add code for new modules here
+ 
++        if conf.options.qt:
++            qtflags = os.popen('pkg-config --cflags Qt5Core Qt5Gui Qt5Widgets', 'r').read()[:-1]
++            conf.env.CFLAGS_WX += qtflags.split()
++            conf.env.CXXFLAGS_WX += qtflags.split()
+ 
+         # NOTE: This assumes that if the platform is not win32 (from the test
+         # above) and not darwin then we must be using the GTK2 or GTK3 port of
+diff -up wxPython-4.1.1/wx/core.py.omv~ wxPython-4.1.1/wx/core.py
+--- wxPython-4.1.1/wx/core.py.omv~	2021-02-02 04:36:01.888338072 +0100
++++ wxPython-4.1.1/wx/core.py	2021-02-02 04:36:16.378260116 +0100
+@@ -3379,6 +3379,8 @@ def version():
+             port = 'gtk2'
+         elif 'gtk3' in wx.PlatformInfo:
+             port = 'gtk3'
++    elif wx.Port == '__WXQT__':
++        port = 'qt'
+     else:
+         port = '???'
+     return "%s %s (phoenix) %s" % (wx.VERSION_STRING, port, wx.wxWidgets_version)
+diff -up wxPython-4.1.1/wx/lib/inspection.py.omv~ wxPython-4.1.1/wx/lib/inspection.py
+--- wxPython-4.1.1/wx/lib/inspection.py.omv~	2021-02-02 04:37:54.327733145 +0100
++++ wxPython-4.1.1/wx/lib/inspection.py	2021-02-02 04:38:17.974272592 +0100
+@@ -823,7 +823,7 @@ class _InspectionHighlighter(object):
+     highlightTime = 3000   # how long to display the highlights
+ 
+                            # how to draw it
+-    useOverlay = 'wxMac' in wx.PlatformInfo or 'gtk3' in wx.PlatformInfo
++    useOverlay = 'wxMac' in wx.PlatformInfo or 'gtk3' in wx.PlatformInfo or 'qt' in wx.PlatformInfo
+ 
+ 
+     def __init__(self):
+diff -up wxPython-4.1.1/wx/lib/mixins/listctrl.py.omv~ wxPython-4.1.1/wx/lib/mixins/listctrl.py
+--- wxPython-4.1.1/wx/lib/mixins/listctrl.py.omv~	2021-02-02 04:38:32.620860459 +0100
++++ wxPython-4.1.1/wx/lib/mixins/listctrl.py	2021-02-02 04:38:50.627430250 +0100
+@@ -261,7 +261,7 @@ class ListCtrlAutoWidthMixin:
+ 
+             We automatically resize the last column in the list.
+         """
+-        if 'gtk2' in wx.PlatformInfo or 'gtk3' in wx.PlatformInfo:
++        if 'gtk2' in wx.PlatformInfo or 'gtk3' in wx.PlatformInfo or 'qt' in wx.PlatformInfo:
+             self._doResize()
+         else:
+             wx.CallAfter(self._doResize)
+diff -up wxPython-4.1.1/wx/py/editwindow.py.omv~ wxPython-4.1.1/wx/py/editwindow.py
+--- wxPython-4.1.1/wx/py/editwindow.py.omv~	2021-02-02 04:36:34.434829637 +0100
++++ wxPython-4.1.1/wx/py/editwindow.py	2021-02-02 04:37:29.017869312 +0100
+@@ -40,6 +40,18 @@ elif 'wxGTK' in wx.PlatformInfo and ('gt
+               'calltipfg' : '#404040',
+             }
+ 
++elif 'wxQT' in wx.PlatformInfo:
++    FACES = { 'times'     : 'Serif',
++              'mono'      : 'Monospace',
++              'helv'      : 'Sans',
++              'other'     : 'new century schoolbook',
++              'size'      : 10,
++              'lnsize'    : 9,
++              'backcol'   : '#FFFFFF',
++              'calltipbg' : '#FFFFB8',
++              'calltipfg' : '#404040',
++            }
++
+ elif 'wxMac' in wx.PlatformInfo:
+     FACES = { 'times'     : 'Lucida Grande',
+               'mono'      : 'Monaco',
+diff -up wxPython-4.1.1/sip/cpp/sip_corecmodule.cpp.omv~ wxPython-4.1.1/sip/cpp/sip_corecmodule.cpp
+--- wxPython-4.1.1/sip/cpp/sip_corecmodule.cpp.omv~	2021-03-15 15:10:32.313408382 +0100
++++ wxPython-4.1.1/sip/cpp/sip_corecmodule.cpp	2021-03-15 15:10:49.204151565 +0100
+@@ -8515,6 +8515,10 @@ void wxPyCoreModuleInject(PyObject* modu
+ #define wxPort "__WXMAC__"
+ #define wxPortName "wxMac"
+ #endif
++#ifdef __WXQT__
++#define wxPort "__WXQT__"
++#define wxPortName "wxQt"
++#endif
+ 
+     wxInitAllImageHandlers();
+ 
+diff -up wxPython-4.1.1/sip/gen/_core.sip.omv~ wxPython-4.1.1/sip/gen/_core.sip
+--- wxPython-4.1.1/sip/gen/_core.sip.omv~	2021-03-15 15:09:49.088726796 +0100
++++ wxPython-4.1.1/sip/gen/_core.sip	2021-03-15 15:10:08.195517834 +0100
+@@ -363,6 +363,10 @@ void wxPyCoreModuleInject(PyObject* modu
+ #define wxPort "__WXMAC__"
+ #define wxPortName "wxMac"
+ #endif
++#ifdef __WXQT__
++#define wxPort "__WXQT__"
++#define wxPortName "wxQt"
++#endif
+ 
+     wxInitAllImageHandlers();
+ 
